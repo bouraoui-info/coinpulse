@@ -6,11 +6,17 @@ import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 export const TrendingCoin = async () => {
-  const trendingCoins = await fetcher<{ coins: TrendingCoin[] }>(
-    "/search/trending",
-    undefined,
-    300,
-  );
+  let trendingCoins;
+
+  try {
+    trendingCoins = await fetcher<{ coins: TrendingCoin[] }>(
+      "/search/trending",
+      undefined,
+      300,
+    );
+  } catch (error) {
+    console.error("Error fetching trending coins:", error);
+  }
 
   const columns: DataTableColumn<TrendingCoin>[] = [
     {
@@ -36,7 +42,9 @@ export const TrendingCoin = async () => {
       cellClassName: "name-cell",
       cell: (coin) => {
         const item = coin.item;
-        const isTrendingUp = item.data.price_change_percentage_24h.usd > 0;
+        const change = item.data?.price_change_percentage_24h?.usd ?? 0;
+        const isTrendingUp = change > 0;
+
         return (
           <div
             className={cn(
@@ -50,7 +58,7 @@ export const TrendingCoin = async () => {
               ) : (
                 <TrendingDown width={16} height={16} />
               )}
-              {item.data.price_change_percentage_24h.usd}%
+              {change}%
             </p>
           </div>
         );
@@ -59,25 +67,26 @@ export const TrendingCoin = async () => {
     {
       header: "Price",
       cellClassName: "price-cell",
-      cell: (coin) => coin.item.data.price,
+      cell: (coin) => coin.item.data?.price ?? "N/A",
     },
   ];
 
   return (
     <div id="trending-coins">
-      {" "}
       <h4>Trending Coins</h4>
-      <div id="trending-coins">
+
+      {!trendingCoins ? (
+        <p className="text-red-500">Failed to load trending coins.</p>
+      ) : (
         <DataTable
-          data={trendingCoins.coins.slice(0, 6) || []}
+          data={trendingCoins.coins?.slice(0, 6) || []}
           columns={columns}
           rowKey={(coin) => coin.item.id}
           tableClassName="trending-coins-table"
           headerCellClassName="py-3!"
           bodyCellClassName="py-2!"
-
         />
-      </div>
+      )}
     </div>
   );
 };
