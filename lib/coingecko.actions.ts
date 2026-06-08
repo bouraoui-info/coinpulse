@@ -1,10 +1,12 @@
 "use server";
 import qs from "query-string";
-const BASE_URL = process.env.COINGECKO_BASE_URL;
-const API_KEY = process.env.COINGECKO_API_KEY;
-if (!BASE_URL || !API_KEY) {
+const _baseUrl = process.env.COINGECKO_BASE_URL;
+const _apiKey = process.env.COINGECKO_API_KEY;
+if (!_baseUrl || !_apiKey) {
   throw new Error("Missing CoinGecko API configuration");
 }
+const BASE_URL: string = _baseUrl;
+const API_KEY: string = _apiKey;
 export async function fetcher<T>(
   endpoint: string,
   params?: QueryParams,
@@ -14,9 +16,12 @@ export async function fetcher<T>(
     { url: `${BASE_URL}${endpoint}`, query: params },
     { skipEmptyString: true, skipNull: true },
   );
+  const isPro = BASE_URL.includes("pro-api");
+  const apiKeyHeader = isPro ? "x-cg-pro-api-key" : "x-cg-demo-api-key";
+
   const response = await fetch(url, {
     headers: {
-      "x-cg-pro-api-key": API_KEY,
+      [apiKeyHeader]: API_KEY,
       "Content-Type": "application/json",
     } as Record<string, string>,
     next: { revalidate },
@@ -25,9 +30,11 @@ export async function fetcher<T>(
     const errorBody: CoinGeckoErrorBody = await response
       .json()
       .catch(() => ({}));
-    throw new Error(
-      `API Error ${response.status}: ${errorBody.error || response.statusText}`,
-    );
+    const message =
+      typeof errorBody.error === "string"
+        ? errorBody.error
+        : JSON.stringify(errorBody.error) || response.statusText;
+    throw new Error(`API Error ${response.status}: ${message}`);
   }
   return response.json();
 }
